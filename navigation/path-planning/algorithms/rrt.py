@@ -20,6 +20,8 @@ def nearest_point(g, rand_pnt): #Runtime: O(n)
 def get_new_node(nrst_pnt, rnd_pnt, step):
     diff_vector = tuple((a - b for a, b in zip(rnd_pnt, nrst_pnt)))
     magnitude = distance_func(nrst_pnt, rnd_pnt)
+    if magnitude < step:
+        step = magnitude
     new_node = tuple((a + x * (step/magnitude) for x, a in zip(diff_vector, nrst_pnt)))
 
     return new_node
@@ -101,7 +103,7 @@ def plot_graph(g, grid_size, obstacles):
     pos = {node: node for node in g.nodes()}  # positions for all nodes
     
     plt.title('Rapidly-exploring Random Tree (RRT)')
-    nx.draw(g, pos, with_labels=False, node_size=5, node_color='blue', edge_color='grey')
+    nx.draw(g, pos, with_labels=False, node_size=0, node_color='blue', edge_color='grey')
     plt.xlim(0, grid_size)
     plt.ylim(0, grid_size)
     plt.axis('on')
@@ -123,7 +125,7 @@ def plot_graph(g, grid_size, obstacles):
 if __name__ == "__main__":
     #RRT parameters
     grid_size = 100
-    step_size = 2
+    step_size = 5
     iters = 2000
 
     #Initialize graphs
