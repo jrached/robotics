@@ -4,17 +4,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 
-class Node():
-    def __init__(self, val, parent):
-        self.val = val
-        self.parent = parent
-        self.children = []
-    
-    def append_child(self, child):
-        self.children.append(child)
-    
-    def get_children(self):
-        return self.children
+#TODO: 1. Use kd-trees for nearest neighbors instead of brute force (O(logn) vs O(n)) so that 
+#         the runtime of the entire algorithms is reduced to O(nlogn).
+#      2. Fix the collision check algorithm so that it detects shapes other than squares properly. 
+#         This one is strange. Checking for collisions with obstacles represented as collections of 
+#         line segments should work for all shapes. I even have tested the function individually on 
+#         a rombus and it works. But it doesn't when the whole algorithm is run.
 
 ####################
 ###Main Functions###
@@ -38,7 +33,18 @@ def get_new_node(nrst_pnt, rnd_pnt, step):
 
     return new_node
   
-def rrt(g, netx, num_iters, step, grid_size, obstacles): #Runtime O(n^2)
+def rrt(g, netx, num_iters, step, grid_size, obstacles, goal_node, eps): #Runtime O(n^2)
+    """ 
+    Standard rrt algorithm.
+
+    Input(s): A dictionary containing the starting node, g. A networkx object, netx.
+                The obstacles as an array containing arrays of line segments, obstacles.
+                A goal, goal_node. And rrt parameters. 
+    Output(s): A dictionary mapping all nodes to their immidiate parent, g.
+                A networkx graph object for plotting the tree, netx. And an array
+                containing all the nodes that are within a distance of the goal, paths.
+    """
+    paths = []
     for _ in range(num_iters):
         random_point = get_rand_point(grid_size)
         nearest = nearest_point(g, random_point)
@@ -55,7 +61,32 @@ def rrt(g, netx, num_iters, step, grid_size, obstacles): #Runtime O(n^2)
             netx.add_node(new_node)
             netx.add_edge(nearest, new_node)
 
-    return g, netx
+            #Check if goal reached
+            if distance_func(new_node, goal_node) < eps:
+                paths.append(new_node)
+
+    return g, netx, paths
+
+def reconstruct_path(g, paths):
+    """
+    For each node that is within a distance of the goal, end_node,
+    it goes back up its parents until it reaches the starting node.
+
+    Input(s): A dictionary mapping all nodes to their immidiate parent, g, 
+                and an array containing all the end nodes, paths.
+    Outputs(s): An array containing the shortest path found.
+    """
+    full_paths = []
+    for end_node in paths:
+        full_path = []
+        while end_node: 
+            full_path.append(end_node)
+            end_node = g[end_node]
+        full_paths.append(full_path)
+
+    if full_paths == []:
+        return full_paths
+    return min(full_paths, key=lambda x: len(x))
 
 #########################
 ###Collision Functions###
@@ -110,7 +141,7 @@ def get_closest_collision(obstacles, nearest, new_node):
 ##############
 ###Plotting###
 ############## 
-def plot_graph(g, grid_size, obstacles):
+def plot_graph(g, grid_size, obstacles, origin, goal, path):
     pos = {node: node for node in g.nodes()}  # positions for all nodes
     
     plt.title('Rapidly-exploring Random Tree (RRT)')
@@ -126,9 +157,25 @@ def plot_graph(g, grid_size, obstacles):
             plt.plot((start[0], end[0]), (start[1], end[1]), color = "black")
 
     #Plot starting point 
-    for segment in [[(49, 49), (49, 51)], [(49, 51), (51, 51)], [(51, 51), (51, 49)], [(51, 49), (49, 49)]]:
+    x, y = origin[0], origin[1]
+    bbox = [[(x-2, y-2), (x-2, y+2)], [(x-2, y+2), (x+2, y+2)], [(x+2, y+2), (x+2, y-2)], [(x+2, y-2), (x-2, y-2)]]
+    for segment in bbox:
         start, end = segment[0], segment[1]
         plt.plot((start[0], end[0]), (start[1], end[1]), color = "green")
+
+    #Plot goal 
+    x, y = goal[0], goal[1]
+    bbox = [[(x-2, y-2), (x-2, y+2)], [(x-2, y+2), (x+2, y+2)], [(x+2, y+2), (x+2, y-2)], [(x+2, y-2), (x-2, y-2)]]
+    for segment in bbox:
+        start, end = segment[0], segment[1]
+        plt.plot((start[0], end[0]), (start[1], end[1]), color = "red")
+
+    #Plot path
+    if path != []:
+        start = path[0]
+        for end in path[1:]:
+            plt.plot((start[0], end[0]), (start[1], end[1]), color = "blue")
+            start = end
 
     plt.show()
     
@@ -138,23 +185,25 @@ if __name__ == "__main__":
     grid_size = 100
     step_size = 5
     iters = 2000
+    eps = 3
 
     #Initialize graphs
-    start_node = (grid_size/2, grid_size/2)
+    start_node = (5, 5)
+    goal = (90, 90)
     graph = {start_node: None}
     netx_g = nx.Graph()
     netx_g.add_node(start_node)
 
     #Initialize obstacles
     obstacles = [[[(20,20), (30,20)], [(30, 20), (30, 30)], [(30, 30), (20,30)], [(20,30), (20, 20)]], 
+                 [[(20,80), (35,80)], [(35, 80), (35, 95)], [(35, 95), (20,95)], [(20,95), (20, 80)]],
                  [[(60,60), (80,60)], [(80, 60), (80, 80)], [(80, 80), (60,80)], [(60,80), (60, 60)]]]
 
-    new_graph, new_g = rrt(graph, netx_g, iters, step_size, grid_size, obstacles)
-    plot_graph(new_g, grid_size, obstacles)
+    new_graph, new_g, paths = rrt(graph, netx_g, iters, step_size, grid_size, obstacles, goal, eps)
+    best_path = reconstruct_path(new_graph, paths)
+    plot_graph(new_g, grid_size, obstacles, start_node, goal, best_path)
 
-    
-#Note if we implemented nearest neighbors using kd-trees, it would take O(logn) time to both insert and query
-#to our graph, meaning our entire algorithm would have an O(nlogn) runtime.
-
-
-
+    #Problematic obstacle:
+    # obstacles = [[[(85,25), (90,30)], [(90, 30), (85, 35)], [(85, 35), (80,30)], [(80,30), (85, 25)]]]
+    # intersection = get_closest_collision(obstacles, (82.5, 27.5), (83, 28))
+    # print(intersection)
