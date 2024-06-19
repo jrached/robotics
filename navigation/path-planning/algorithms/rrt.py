@@ -4,6 +4,18 @@ import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
 
+class Node():
+    def __init__(self, val, parent):
+        self.val = val
+        self.parent = parent
+        self.children = []
+    
+    def append_child(self, child):
+        self.children.append(child)
+    
+    def get_children(self):
+        return self.children
+
 ####################
 ###Main Functions###
 ####################
@@ -37,8 +49,7 @@ def rrt(g, netx, num_iters, step, grid_size, obstacles): #Runtime O(n^2)
 
         if new_node != nearest:
             #Update graph
-            g[nearest].append(new_node)
-            g[new_node] = []
+            g[new_node] = nearest
 
             #Upgdate networkx graph
             netx.add_node(new_node)
@@ -130,7 +141,7 @@ if __name__ == "__main__":
 
     #Initialize graphs
     start_node = (grid_size/2, grid_size/2)
-    graph = {start_node: []}
+    graph = {start_node: None}
     netx_g = nx.Graph()
     netx_g.add_node(start_node)
 
