@@ -4,8 +4,43 @@ import heapq
 import networkx as nx
 import matplotlib.pyplot as plt
 
-#TODO: Use heap to implement priority queue and speed up the algorithm by a factor of n. 
+#TODO: Make a trajectory class where each trajectory has two properties: path and cost.
+
+####################
+###Priority Queue###
+####################
+class PriorityQueue():
+    """
+    Priority queue for arrays of trajectory objects.
+    """
+
+    def __init__(self, queue):
+        dic, heap = {}, []
+        for path, cost in queue:
+            dic[cost] = dic.get(cost, []) + [path]
+            heap.append(cost)
+        
+        self.dic = dic
+        self.heap = heap
+        heapq.heapify(self.heap)
     
+    def add_to_queue(self, new_path):
+        path, cost = new_path
+        self.dic[cost] = self.dic.get(cost, []) + [path]
+        heapq.heappush(self.heap, cost)
+
+    def pop_queue(self):
+        opt_cost = heapq.heappop(self.heap)
+        opt_paths = self.dic[opt_cost]
+        opt_path = opt_paths.pop(0)
+
+        self.dic[opt_cost] = opt_paths
+        
+        return (opt_path, opt_cost)
+        
+#####################
+###Grid Functions####
+#####################        
 def make_grid(size):
     graph = {}
     cost, diag_cost = 1, (2)**0.5
@@ -31,8 +66,7 @@ def make_grid(size):
                 graph[(i,j)] = [[(i+1,j),cost], [(i,j+1),cost], [(i-1, j),cost], [(i,j-1), diag_cost], [(i+1,j+1), diag_cost], [(i-1,j-1), diag_cost], [(i+1,j-1), diag_cost], [(i-1,j+1), diag_cost]]  
     
     return graph
-    
-
+   
 def grid_to_network(graph):
     net = nx.Graph()
     for node, children in graph.items():
@@ -55,6 +89,9 @@ def path_to_network(path):
 
     return net
 
+##########################
+###Dijkstra's Algorithm###
+##########################
 def dijkstras(g, start, goal):
     """
     Standard dijkstra's algorithm.
@@ -64,12 +101,11 @@ def dijkstras(g, start, goal):
     Output(s): The optimal path and its cost as a tuple.
     """
 
-    queue, visited = [([start], 0)], set()
-    while queue: 
+    pqueue, visited = PriorityQueue([([start], 0)]), set()
+    while pqueue: 
 
         #Get path of least cost
-        queue = sorted(queue, key=lambda x : x[1])
-        path, distance = queue.pop(0)
+        path, distance = pqueue.pop_queue()
         
         #Get last element in path
         curr = path[-1]
@@ -86,12 +122,15 @@ def dijkstras(g, start, goal):
             new_distance = distance + edge_distance
             new_path = path + [child] 
             
-            queue.append((new_path, new_distance))
+            pqueue.add_to_queue((new_path, new_distance))
 
         visited.add(curr)
 
     return None
 
+##############
+###Plotting###
+##############
 def plot_path(grid_network, path_network, visited_network):
     pos = {node: node for node in grid_network.nodes() }
     nx.draw(grid_network, pos, node_color="gray", edge_color="gray")
@@ -100,7 +139,8 @@ def plot_path(grid_network, path_network, visited_network):
     pos = {node: node for node in path_network.nodes()} 
     nx.draw(path_network, pos, node_color="green", edge_color="green")
     plt.show()
-    
+
+
 if __name__ == '__main__':
     #Initialize grid with an "obstacle" between (2,2) and (3,3)
     graph = make_grid(10)
@@ -117,6 +157,3 @@ if __name__ == '__main__':
 
     plot_path(net, pathnet, visitnet)
 
-    
-
-    
