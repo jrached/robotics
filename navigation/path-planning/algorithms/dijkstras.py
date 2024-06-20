@@ -4,7 +4,7 @@ import heapq
 import networkx as nx
 import matplotlib.pyplot as plt
 
-#TODO: Make a trajectory class where each trajectory has two properties: path and cost.
+#TODO: Clean up priority queue class. 
 
 ####################
 ###Priority Queue###
@@ -102,19 +102,20 @@ def dijkstras(g, start, goal):
     """
 
     pqueue, visited = PriorityQueue([([start], 0)]), set()
+    cost_so_far = {start: 0}
     while pqueue: 
 
         #Get path of least cost
-        path, distance = pqueue.pop_queue()
+        path, _ = pqueue.pop_queue()
         
         #Get last element in path
         curr = path[-1]
 
-        if curr in visited:
+        if curr in visited: 
             continue
 
         if curr == goal:
-            return (path, distance, visited)
+            return (path, cost_so_far[curr], visited)
         
         #Update costs of children
         for child, edge_distance in g[curr]:
@@ -122,10 +123,59 @@ def dijkstras(g, start, goal):
             if child in visited:
                 continue
 
-            new_distance = distance + edge_distance
-            new_path = path + [child] 
+            new_distance = cost_so_far[curr] + edge_distance
+
+            if child not in cost_so_far or new_distance < cost_so_far[child]:
+                new_path = path + [child] 
+                cost_so_far[child] = new_distance
+                pqueue.add_to_queue((new_path, new_distance))
+        
+        visited.add(curr)
+
+    return None
+
+##############
+######A*######
+##############
+def heuristic(pnt1, pnt2):
+    #Manhattan distance
+    return abs(pnt2[0] - pnt1[0]) + abs(pnt2[1] - pnt1[1])
+
+def astar(g, start, goal):
+    """
+    Standard A* algorithm.
+
+    Input(s): The graph containing the edge costs, g.
+              The start and goal coordinates, start, goal.
+    Output(s): The optimal path and its cost as a tuple.
+    """
+
+    pqueue, visited = PriorityQueue([([start], 0)]), set()
+
+    cost_so_far = {start : 0}
+    while pqueue: 
+
+        #Get path of least cost + heuristic
+        path, _ = pqueue.pop_queue()
+        
+        #Get last element in path
+        curr = path[-1]
+
+        if curr == goal:
+            return (path, cost_so_far[curr], visited)
+        
+        #Update costs of children
+        for child, edge_distance in g[curr]:
             
-            pqueue.add_to_queue((new_path, new_distance))
+            if child in visited:
+                continue
+
+            new_distance = cost_so_far[curr] + edge_distance
+            
+            if child not in cost_so_far or new_distance < cost_so_far[child]:
+                new_path = path + [child] 
+                cost_so_far[child] = new_distance
+                pqueue.add_to_queue((new_path, new_distance + heuristic(child, goal)))
         
         visited.add(curr)
 
@@ -148,7 +198,7 @@ if __name__ == '__main__':
     #Initialize grid
     grid_size = 100
     graph = make_grid(grid_size)
-    start, goal = (0,0), (50,25)
+    start, goal = (0,0), (25,50)
 
     # Add "obstacle" between (2,2) and (3,3)
     # graph[(2, 2)] = [[(2,3), 1], [(3,2), 1], [(3,3), float('inf')]]
@@ -156,7 +206,7 @@ if __name__ == '__main__':
     #Run dijkstra's algorithm
     path, distance, visited = dijkstras(graph, start, goal)
 
-    #Make networkx graphs for plotting
+    # Make networkx graphs for plotting
     net = grid_to_network(graph)
     pathnet = path_to_network(path)
     visitnet = path_to_network(list(visited))
