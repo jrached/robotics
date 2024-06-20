@@ -94,7 +94,7 @@ def path_to_network(path):
 ##########################
 def dijkstras(g, start, goal):
     """
-    Standard dijkstra's algorithm.
+    Standard dijkstra's algorithm. Runtime: O((V + E)log(V))
 
     Input(s): The graph containing the edge costs, g.
               The start and goal coordinates, start, goal.
@@ -110,6 +110,9 @@ def dijkstras(g, start, goal):
         #Get last element in path
         curr = path[-1]
 
+        if curr in visited:
+            continue
+
         if curr == goal:
             return (path, distance, visited)
         
@@ -123,7 +126,7 @@ def dijkstras(g, start, goal):
             new_path = path + [child] 
             
             pqueue.add_to_queue((new_path, new_distance))
-
+        
         visited.add(curr)
 
     return None
@@ -133,23 +136,26 @@ def dijkstras(g, start, goal):
 ##############
 def plot_path(grid_network, path_network, visited_network):
     pos = {node: node for node in grid_network.nodes() }
-    nx.draw(grid_network, pos, node_color="gray", edge_color="gray")
+    nx.draw(grid_network, pos, node_size=10, node_color="gray", edge_color="gray")
     pos = {node: node for node in visited_network.nodes()}
-    nx.draw(visited_network, pos, node_color="red", edge_color="none")
+    nx.draw(visited_network, pos, node_size=10, node_color="red", edge_color="none")
     pos = {node: node for node in path_network.nodes()} 
-    nx.draw(path_network, pos, node_color="green", edge_color="green")
+    nx.draw(path_network, pos, node_size=10, node_color="green", edge_color="green")
     plt.show()
 
 
 if __name__ == '__main__':
-    #Initialize grid with an "obstacle" between (2,2) and (3,3)
-    graph = make_grid(10)
-    graph[(2, 2)] = [[(2,3), 1], [(3,2), 1], [(3,3), float('inf')]]
-    start, goal = (0,0), (7,7)
+    #Initialize grid
+    grid_size = 100
+    graph = make_grid(grid_size)
+    start, goal = (0,0), (50,25)
+
+    # Add "obstacle" between (2,2) and (3,3)
+    # graph[(2, 2)] = [[(2,3), 1], [(3,2), 1], [(3,3), float('inf')]]
 
     #Run dijkstra's algorithm
     path, distance, visited = dijkstras(graph, start, goal)
-    
+
     #Make networkx graphs for plotting
     net = grid_to_network(graph)
     pathnet = path_to_network(path)
