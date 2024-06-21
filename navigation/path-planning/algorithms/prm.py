@@ -24,10 +24,12 @@ def point_in_collision(pnt, obstacles):
         collision = collision or polygon.contains(point)
     return collision 
 
-
 def segment_in_collision(segment, obstacles):
-    #TODO: Implement this. 
-    pass
+    line_segment, collision = LineString(segment), False
+    for obstacle in obstacles: 
+        polygon = Polygon(obstacle)
+        collision = collision or polygon.intersects(line_segment)
+    return collision 
 
 def build_prm(k, grid_size, obstacles, n=5):
     #TODO: Change numpy arrays to lists
@@ -48,15 +50,20 @@ def build_prm(k, grid_size, obstacles, n=5):
     return v, e
     
 
-
-
-
-
 if __name__ == '__main__': 
-    points = np.array([(i, j) for i, j in zip(range(10),range(10,20))])
-    print(points)
-    tree = KDTree(points, leaf_size=2)
+    # points = np.array([(i, j) for i, j in zip(range(10),range(10,20))])
+    # print(points)
+    # tree = KDTree(points, leaf_size=2)
 
-    query_point = (1, 11)
-    nn = nearest_neighbors(query_point, points, tree, 10)
-    print(nn)
+    # query_point = (1, 11)
+    # nn = nearest_neighbors(query_point, points, tree, 10)
+    # print(nn)
+
+    obstacles = [[(2,4), (4,2), (6,4), (4,6)]]
+    point = (2,2)
+    point_collision = point_in_collision(point, obstacles)
+
+    line = [(2,2), (2.5, 2.5)]
+    line_collision = segment_in_collision(line, obstacles)
+
+    print(line_collision)
