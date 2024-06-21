@@ -24,37 +24,34 @@ class PriorityQueue():
         
 #####################
 ###Grid Functions####
-#####################        
-def make_grid(size):
-    graph = {}
-    cost, diag_cost = 1, (2)**0.5
+##################### 
+def inbounds(pnt, size):
+    return 0 <= pnt[0] <= size - 1 and 0 <= pnt[1] <= size - 1
+
+def not_in_walls(pnt, walls):
+    flag = True
+    for wall in walls:
+        ((low_x, high_x), (low_y, high_y)) = wall
+        flag = flag and not (low_x <= pnt[0] <= high_x and low_y <= pnt[1] <= high_y)
+    return flag
+
+def make_grid(size, walls=[]):
+    graph, cost, diag_cost = {}, 1, (2)**0.5
     for i in range(size):
-        for j in range(size):    
-            if i == 0 and j ==0:
-                graph[(i, j)] = [[(i,j+1),cost], [(i+1,j),cost], [(i+1,j+1), diag_cost]]  
-            elif i == size-1 and j == size-1:
-                graph[(i,j)] = [[(i,j-1),cost], [(i-1,j),cost], [(i-1,j-1), diag_cost]]  
-            elif i == 0 and j == size-1:
-                graph[(i,j)] = [[(i,j-1),cost], [(i+1,j),cost], [(i+1,j-1), diag_cost]]  
-            elif i == size-1 and j ==0:
-                graph[(i,j)] = [[(i,j+1),cost], [(i-1,j),cost], [(i-1,j+1), diag_cost]]  
-            elif i == 0:
-                graph[(i,j)] = [[(i,j+1),cost], [(i+1,j),cost], [(i, j-1),cost], [(i+1,j-1), diag_cost], [(i+1,j+1), diag_cost]]  
-            elif j == 0:
-                graph[(i,j)] = [[(i,j+1),cost], [(i+1,j),cost], [(i-1, j),cost], [(i-1,j+1), diag_cost], [(i+1,j+1), diag_cost]] 
-            elif i == size -1:
-                graph[(i,j)] = [[(i,j+1),cost], [(i-1,j),cost], [(i, j-1),cost], [(i-1,j+1), diag_cost], [(i-1,j-1), diag_cost]] 
-            elif j == size -1:
-                graph[(i,j)] = [[(i+1,j),cost], [(i-1,j),cost], [(i, j-1),cost], [(i+1,j-1), diag_cost], [(i-1,j-1), diag_cost]] 
-            else:
-                graph[(i,j)] = [[(i+1,j),cost], [(i,j+1),cost], [(i-1, j),cost], [(i,j-1), diag_cost], [(i+1,j+1), diag_cost], [(i-1,j-1), diag_cost], [(i+1,j-1), diag_cost], [(i-1,j+1), diag_cost]]  
-    
+        for j in range(size):
+            neighbors = []    
+            for dx, dy, dist in [(1,0,cost), (0,1,cost), (-1,0,cost), (0,-1,cost), (1,1,diag_cost), (-1,1,diag_cost), (1,-1,diag_cost), (-1,-1,diag_cost)]:
+                neighbors.append(((i + dx, j + dy), dist))
+            neighbors = list(filter(lambda x: inbounds(x[0], size), neighbors))
+            neighbors = list(filter(lambda x: not_in_walls(x[0], walls), neighbors))
+            graph[(i,j)] = neighbors
     return graph
    
 def grid_to_network(graph):
     net = nx.Graph()
     for node, children in graph.items():
-        net.add_node(node)
+        if children:
+            net.add_node(node)
         for child in children:
             child = child[0]
             net.add_node(child)
@@ -116,7 +113,9 @@ def dijkstras(g, start, goal):
 ##################
 ###A* Algorithm###
 ##################
-def heuristic(pnt1, pnt2):
+def heuristic(pnt1, pnt2, euclidean=True):
+    if euclidean:
+        return ((pnt2[0] - pnt1[0])**2 + (pnt2[1] - pnt1[1])**2)**0.5
     return abs(pnt2[0] - pnt1[0]) + abs(pnt2[1] - pnt1[1])
 
 def astar(g, start, goal):
@@ -168,11 +167,12 @@ def plot_path(grid_network, path_network, visited_network):
 
 if __name__ == '__main__':
     #Initialize grid
+    walls = [((40,60),(40,60)), ((60,80), (10,30)), ((20,30),(20,30))]
     grid_size = 100
-    graph = make_grid(grid_size)
-    start, goal = (0,0), (50,25)
+    graph = make_grid(grid_size, walls)
+    start, goal = (5,50), (80, 45)
 
-    #Run dijkstra's algorithm
+    #Run dijkstra's or astar algorithm
     distance, path, visited = astar(graph, start, goal)
 
     # Make networkx graphs for plotting
