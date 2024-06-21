@@ -14,8 +14,8 @@ def nearest_neighbors(pnt, pnts, tree, n):
     """
     Gets n nearest neighbors of pnt from a KDTree object.
     """
-    _, indices = tree.query([pnt], k=n)
-    return pnts[indices][:,1:,:]
+    _, indices = tree.query([pnt], k=n+1)
+    return pnts[indices][:,1:,:][0]
 
 def point_in_collision(pnt, obstacles):
     point, collision = Point(pnt), False
@@ -33,17 +33,17 @@ def segment_in_collision(segment, obstacles):
 
 def build_prm(k, grid_size, obstacles, n=5):
     #TODO: Change numpy arrays to lists
-    v, e = np.array([]), np.array([])
+    v, e = np.array([[0,0]]), np.array([[0,0]])
     for _ in range(k):
         pnt = get_random_point(grid_size)
         while point_in_collision(pnt, obstacles):
             pnt = get_random_point(grid_size)
-        np.vstack((v, pnt))
+        v = np.vstack((v, pnt))
 
     tree = KDTree(v, leaf_size=2)
     for pnt in v: 
         for neighbor in nearest_neighbors(pnt, v, tree, n):
-                edge = (pnt, neighbor)
+                edge = [pnt, neighbor]
                 if not segment_in_collision(edge, obstacles):
                     np.vstack((e, edge))
     
@@ -60,10 +60,23 @@ if __name__ == '__main__':
     # print(nn)
 
     obstacles = [[(2,4), (4,2), (6,4), (4,6)]]
-    point = (2,2)
-    point_collision = point_in_collision(point, obstacles)
+    # point = np.array((3,3))
+    # point_collision = point_in_collision(point, obstacles)
 
-    line = [(2,2), (2.5, 2.5)]
-    line_collision = segment_in_collision(line, obstacles)
+    # line = [(2,2), (2.5, 2.5)]
+    # line_collision = segment_in_collision(line, obstacles)
 
-    print(line_collision)
+    # print(point_collision)
+
+    iters = 200
+    grid_size = 100
+
+    v, e = build_prm(iters, grid_size, obstacles)
+
+    # arr1 = np.array([1, 2, 3])
+    # arr2 = np.array([4, 5, 6])
+    # arr3 = np.vstack((arr1, arr2))
+
+    # print(arr3)
+
+
