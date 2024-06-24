@@ -148,13 +148,16 @@ def plot_graph(g, grid_size, obstacles, origin, goal, path):
     nx.draw(g, pos, with_labels=False, node_size=0, node_color='blue', edge_color='grey')
     plt.xlim(0, grid_size)
     plt.ylim(0, grid_size)
-    plt.axis('on')
 
     #Plot obstacles 
     for obstacle in obstacles:
         for segment in obstacle:
             start, end = segment[0], segment[1]
             plt.plot((start[0], end[0]), (start[1], end[1]), color = "black")
+    
+    #Plot environment boundary
+    x, y = [0, 0, 100, 100, 0], [0, 100, 100, 0, 0]
+    plt.plot (x, y, color="black")
 
     #Plot starting point 
     x, y = origin[0], origin[1]
