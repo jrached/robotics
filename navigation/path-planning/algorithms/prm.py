@@ -5,7 +5,7 @@ from sklearn.neighbors import KDTree
 import matplotlib.pyplot as plt 
 import networkx as nx 
 from dijkstras import astar, path_to_network, heuristic
-from utils import point_in_collision, segment_in_collision, shortcutting
+from utils import point_in_collision, segment_in_collision, shortcutting, Map
 
 ######################
 ###Helper Functions###
@@ -37,12 +37,12 @@ def nearest_neighbors(pnt, pnts, tree, k):
     neighbors = pnts[indices][0, 1:,:]
     return [tuple(neighbor) for neighbor in neighbors]
 
-def build_prm(iters, grid_size, obstacles, k):
+def build_prm(iters, size, obstacles, k):
     v, e = [], []
     for _ in range(iters):
-        pnt = get_random_point(grid_size)
+        pnt = get_random_point(size)
         while point_in_collision(pnt, obstacles):
-            pnt = get_random_point(grid_size)
+            pnt = get_random_point(size)
         v.append(pnt)
 
     tree = KDTree(v, leaf_size=2)
@@ -93,19 +93,17 @@ def plot(v, e, path, obstacles):
 
 
 if __name__ == '__main__': 
+    #Make map
+    map = Map()
+    size = map.get_size()
+    obstacles = map.get_obstacles()
+
     #PRM parameters
     num_pnts = 500
-    grid_size = 100
     k = 15
 
-    #Define obstacles
-    obstacles = []
-    for center in [(40, 40), (20, 20), (20, 80), (70, 70), (60, 10)]:
-        obstacle = [(center[0]+dx, center[1]+dy) for dx, dy in [(0, 10), (10, 20), (20, 10), (10, 0)]]
-        obstacles.append(obstacle)
-
     #Build PRM
-    vertices, edges = build_prm(num_pnts, grid_size, obstacles, k)
+    vertices, edges = build_prm(num_pnts, size, obstacles, k)
     adjacency_list = build_adjacency_list(edges)
  
     #Start and goal

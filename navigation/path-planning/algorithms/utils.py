@@ -3,6 +3,31 @@
 from shapely.geometry import Point, LineString, Polygon 
 import numpy as np
 
+###############
+###Map Class###
+###############
+class Map():
+    def __init__(self, size=100, obstacles=None):
+        self.size = size
+        if not obstacles:
+            obstacles = []
+            for center in [(40, 40), (20, 20), (20, 80), (70, 70), (60, 10)]:
+                obstacle = [(center[0]+dx, center[1]+dy) for dx, dy in [(0, 10), (10, 20), (20, 10), (10, 0)]]
+                obstacles.append(obstacle)
+            self.obstacles = obstacles
+        
+    def get_obstacles(self):
+        return self.obstacles
+    
+    def get_size(self):
+        return self.size
+    
+    def set_obstacles(self, obstacles):
+        self.obstacles = obstacles
+    
+    def set_size(self, size):
+        self.size = size
+
 #########################
 ###Collision Functions###
 #########################

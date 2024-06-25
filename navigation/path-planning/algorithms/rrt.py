@@ -3,7 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
-from utils import shortcutting, get_segment_intersection
+from utils import shortcutting, get_segment_intersection, Map
 
 #TODO: 1. Use kd-trees for nearest neighbors instead of brute force (O(logn) vs O(n)) so that 
 #         the runtime of the entire algorithms is reduced to O(nlogn).
@@ -14,8 +14,8 @@ from utils import shortcutting, get_segment_intersection
 def distance_func(pnt1, pnt2):
     return ((pnt2[0] - pnt1[0])**2 + (pnt2[1] - pnt1[1])**2)**0.5
 
-def get_rand_point(grid_size):
-    rand_xy = np.random.rand(2) * grid_size
+def get_rand_point(map_size):
+    rand_xy = np.random.rand(2) * map_size
     return (rand_xy[0], rand_xy[1])
 
 def nearest_point(g, rand_pnt): #Runtime: O(n)
@@ -30,7 +30,7 @@ def get_new_node(nrst_pnt, rnd_pnt, step):
 
     return new_node
   
-def rrt(g, netx, num_iters, step, grid_size, obstacles, goal_node, eps): #Runtime O(n^2)
+def rrt(g, netx, num_iters, step, map_size, obstacles, goal_node, eps): #Runtime O(n^2)
     """ 
     Standard rrt algorithm.
 
@@ -43,7 +43,7 @@ def rrt(g, netx, num_iters, step, grid_size, obstacles, goal_node, eps): #Runtim
     """
     paths = []
     for _ in range(num_iters):
-        random_point = get_rand_point(grid_size)
+        random_point = get_rand_point(map_size)
         nearest = nearest_point(g, random_point)
         new_node = get_new_node(nearest, random_point, step)
 
@@ -141,13 +141,13 @@ def plot_bbox(pnt, goal=False):
         start, end = segment[0], segment[1]
         plt.plot((start[0], end[0]), (start[1], end[1]), color = color)
     
-def plot_graph(g, grid_size, obstacles, origin, goal, path):
+def plot_graph(g, map_size, obstacles, origin, goal, path):
        
     #Plot tree
     plt.title('Rapidly-exploring Random Tree (RRT)')
     nx.draw(g, {node: node for node in g.nodes()}, node_size=0, node_color='blue', edge_color='grey')
-    plt.xlim(0, grid_size)
-    plt.ylim(0, grid_size)
+    plt.xlim(0, map_size)
+    plt.ylim(0, map_size)
 
     #Plot obstacles 
     for obstacle in obstacles:
@@ -175,8 +175,12 @@ def plot_graph(g, grid_size, obstacles, origin, goal, path):
     
 
 if __name__ == "__main__":
+    #Make map
+    map = Map()
+    map_size = map.get_size()
+    obstacles = map.get_obstacles()
+
     #RRT parameters
-    grid_size = 100
     step_size = 5
     iters = 3000
     eps = 3
@@ -187,14 +191,8 @@ if __name__ == "__main__":
     netx_g = nx.Graph()
     netx_g.add_node(start_node)
 
-    #Initialize obstacles
-    obstacles = []
-    for center in [(40, 40), (20, 20), (20, 80), (70, 70), (60, 10)]:
-        obstacle = [(center[0]+dx, center[1]+dy) for dx, dy in [(0, 10), (10, 20), (20, 10), (10, 0)]]
-        obstacles.append(obstacle)
-
-    new_graph, new_g, paths = rrt(graph, netx_g, iters, step_size, grid_size, obstacles, goal, eps)
+    new_graph, new_g, paths = rrt(graph, netx_g, iters, step_size, map_size, obstacles, goal, eps)
     best_path = reconstruct_path(new_graph, paths) 
     best_path = shortcutting(best_path + [goal], obstacles)
     
-    plot_graph(new_g, grid_size, obstacles, start_node, goal, best_path)
+    plot_graph(new_g, map_size, obstacles, start_node, goal, best_path)
