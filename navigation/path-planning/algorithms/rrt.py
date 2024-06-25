@@ -3,6 +3,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
+from utils import shortcutting
 
 #TODO: 1. Use kd-trees for nearest neighbors instead of brute force (O(logn) vs O(n)) so that 
 #         the runtime of the entire algorithms is reduced to O(nlogn).
@@ -86,7 +87,7 @@ def reconstruct_path(g, paths):
 
     if full_paths == []:
         return full_paths
-    return min(full_paths, key=lambda x: len(x))
+    return min(full_paths, key=lambda x: len(x))[::-1]
 
 #########################
 ###Collision Functions###
@@ -187,7 +188,7 @@ if __name__ == "__main__":
     #RRT parameters
     grid_size = 100
     step_size = 5
-    iters = 2000
+    iters = 3000
     eps = 3
 
     #Initialize graphs
@@ -203,7 +204,9 @@ if __name__ == "__main__":
                  [[(60,60), (80,60)], [(80, 60), (80, 80)], [(80, 80), (60,80)], [(60,80), (60, 60)]]]
 
     new_graph, new_g, paths = rrt(graph, netx_g, iters, step_size, grid_size, obstacles, goal, eps)
-    best_path = reconstruct_path(new_graph, paths)
+    best_path = reconstruct_path(new_graph, paths) 
+    best_path = shortcutting(best_path + [goal], [[segment[0] for segment in obstacle] for obstacle in obstacles])
+    
     plot_graph(new_g, grid_size, obstacles, start_node, goal, best_path)
 
     #Problematic obstacle:
