@@ -35,6 +35,34 @@ def segment_in_collision(segment, obstacles):
         collision = collision or polygon.intersects(line_segment)
     return collision 
 
+def get_segment_intersection(line1, line2):
+    """
+    Given two line segments, it returns the point at which they intersect.
+
+    Input(s): 2 lists containing the starting and end points, as tuples, of two line segments. 
+    Ouput(s): A tuple representing the point at which they intersect. None if they don't intersect.
+    """
+
+    x1, x2, y1, y2 = line1[0][0], line1[1][0], line1[0][1], line1[1][1]
+    a1, a2, b1, b2 = line2[0][0], line2[1][0], line2[0][1], line2[1][1]
+    denominator = (y2 - y1) * (a2 - a1) - (x2 - x1) * (b2 - b1) 
+    numerator = (b1 - y1) * (a2 - a1) + (x1 - a1) * (b2 - b1) 
+
+    if denominator == 0:
+        return None
+    
+    alpha = numerator / denominator 
+    
+    if a2 == a1:
+        beta = (y1 - b1 + alpha * (y2 - y1)) / (b2 - b1) 
+    else:
+        beta = (x1 - a1 + alpha * (x2 - x1)) / (a2 - a1)
+
+    if (alpha > 1 or alpha < 0) or (beta > 1 or beta < 0): 
+        return None
+    
+    return (x1 + alpha * (x2 - x1), y1 + alpha * (y2 - y1))
+
 ##########################
 ###Path Post-Processing###
 ##########################
