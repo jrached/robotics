@@ -71,13 +71,18 @@ def get_nearest_start_and_goal(start, goal, v):
     return (nearest_neighbors(start, v, tree, 1)[0], nearest_neighbors(goal, v, tree, 1)[0])
 
 def shortcutting(path, obstacles, factor=5):
-    new_path = path
     iters = factor * len(path)
     for _ in range(iters): 
-        ndx1, ndx2 = np.sort(np.random.randint(0, len(new_path), 2))
-        pnt1, pnt2 = new_path[ndx1], new_path[ndx2]
+        ndx1, ndx2 = np.sort(np.random.randint(0, len(path), 2))
+        pnt1, pnt2 = path[ndx1], path[ndx2]
         if not segment_in_collision((pnt1, pnt2), obstacles):
-            new_path = new_path[:ndx1+1] + new_path[ndx2:] 
+            path = path[:ndx1+1] + path[ndx2:] 
+    
+    new_path, seen = [], set()
+    for pnt in path:
+        if pnt not in seen:
+            new_path.append(pnt)
+            seen.add(pnt)
 
     return new_path
     
@@ -94,7 +99,7 @@ def convert_to_nx(v, e):
     pos = {node : node for node in graph.nodes}
     return graph, pos
 
-def plot_prm(v, e, path, obstacles):
+def plot(v, e, path, obstacles):
     nx_graph, pos = convert_to_nx(v, e)
     
     plt.title('Probabilistic Roadmap')
@@ -116,7 +121,7 @@ def plot_prm(v, e, path, obstacles):
     #Plot path
     nx_path = path_to_network(path)
     pos = {node : node for node in nx_path.nodes}
-    nx.draw(nx_path, pos, node_color="green", edge_color="green", node_size=10)
+    nx.draw(nx_path, pos, node_color="green", edge_color="green", node_size=25, width=3)
 
     plt.show()
 
@@ -138,13 +143,14 @@ if __name__ == '__main__':
     adjacency_list = build_adjacency_list(edges)
     
     #Start and goal
-    start, goal = (50, 95), (58, 11)
+    start, goal = (5, 5), (90, 90)
     nrst_start, nrst_goal = get_nearest_start_and_goal(start, goal, vertices)
 
     #Search best path in PRM
     distance, path, visited = astar(adjacency_list, nrst_start, nrst_goal)
+    path = shortcutting([start] + path + [goal], obstacles)
 
-    plot_prm(vertices, edges, path, obstacles)
+    plot(vertices, edges, path, obstacles)
 
 
     
