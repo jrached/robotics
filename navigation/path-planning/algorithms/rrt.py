@@ -3,14 +3,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import networkx as nx
-from utils import shortcutting
+from utils import shortcutting, get_segment_intersection
 
 #TODO: 1. Use kd-trees for nearest neighbors instead of brute force (O(logn) vs O(n)) so that 
 #         the runtime of the entire algorithms is reduced to O(nlogn).
-#      2. Fix the collision check algorithm so that it detects shapes other than squares properly. 
-#         This one is strange. Checking for collisions with obstacles represented as collections of 
-#         line segments should work for all shapes. I even have tested the function individually on 
-#         a rombus and it works. But it doesn't when the whole algorithm is run.
 
 ####################
 ###Main Functions###
@@ -85,94 +81,88 @@ def reconstruct_path(g, paths):
             end_node = g[end_node]
         full_paths.append(full_path)
 
-    if full_paths == []:
-        return full_paths
-    return min(full_paths, key=lambda x: len(x))[::-1]
+    return full_paths if full_paths == [] else min(full_paths, key=lambda x: len(x))[::-1]
 
 #########################
 ###Collision Functions###
 #########################
-def get_segment_intersection(line1, line2):
-    """
-    Given two line segments, it returns the point at which they intersect.
-
-    Input(s): 2 lists containing the starting and end points of two line segments. 
-    Ouput(s): A tuple representing the point at which they intersect.
-    """
-
-    x1, x2, y1, y2 = line1[0][0], line1[1][0], line1[0][1], line1[1][1]
-    a1, a2, b1, b2 = line2[0][0], line2[1][0], line2[0][1], line2[1][1]
-    denominator = (y2 - y1) * (a2 - a1) - (x2 - x1) * (b2 - b1) 
-    numerator = (b1 - y1) * (a2 - a1) + (x1 - a1) * (b2 - b1) 
-
-    if denominator == 0:
-        return None
-    
-    alpha = numerator / denominator 
-    
-    if a2 == a1:
-        beta = (y1 - b1 + alpha * (y2 - y1)) / (b2 - b1) 
-    else:
-        beta = (x1 - a1 + alpha * (x2 - x1)) / (a2 - a1)
-
-    if (alpha > 1 or alpha < 0) or (beta > 1 or beta < 0): 
-        return None
-    
-    return (x1 + alpha * (x2 - x1), y1 + alpha * (y2 - y1))
-    
 def get_obstacle_intersection(obstacle, nearest, new_node):
-    line = [nearest, new_node]
-    intersects = []
-    for segment in obstacle:
-        intersect = get_segment_intersection(line, segment)
+    """
+    Using get_segment_intersection(), it finds the intersection between all segments 
+    of an obstacle and the line formed by the nearest node on the tree and the new node.
+    
+    Input(s): A polygon represented as a list of the points at the corners of the polygon, obstacle.
+              The nearest point on the tree as a tuple, nearest.
+              The point we are extending the tree towards as a tuple, new_node.
+    Output(s): If there is any, the intersection of the line and the polygon segment closest to the nearest
+               point on the tree. Else, the point we're extending towards.
+    """
+    start, intersects = obstacle[0], []
+    obstacle = obstacle[1:] + [obstacle[0]]
+    for end in obstacle:
+        intersect = get_segment_intersection([nearest, new_node], [start, end])
+        start = end
         if intersect:
             intersects.append(intersect)
     
-    if len(intersects) == 0:
-        return new_node
-    return min(intersects, key=lambda x : distance_func(x, nearest))
+    return new_node if len(intersects) == 0 else min(intersects, key=lambda x : distance_func(x, nearest)) 
 
 def get_closest_collision(obstacles, nearest, new_node):
+    """
+    Get the closest intersection between any of the line segments 
+    of any of the obstacles in the field and the line formed by the 
+    nearest point on the tree and the point we're extending the tree towards.
+
+    Input(s): A list of polygons, obstacles.
+              The nearest point on the tree as a tuple, nearest.
+              The point we are extending the tree towards as a tuple, new_node.
+    Output(s): The closest intersection out of all the obstacles and our line of interest.
+               If there isn't any, the output will be new_node.               
+    """
     collisions = []
     for obstacle in obstacles: 
         collision = get_obstacle_intersection(obstacle, nearest, new_node)
         collisions.append(collision)
-    return min(collisions, key=lambda x: distance_func(x, nearest))
+    
+    cc = min(collisions, key=lambda x: distance_func(x, nearest))
+    if cc != new_node: #Avoid python rounding error at edges of obstacle.
+        mag = distance_func(nearest, cc)
+        cc = (nearest[0] + 0.01 * (nearest[0] - cc[0]) / mag, nearest[1] + 0.01 * (nearest[1] - cc[1]) / mag)
+    return cc
 
 ##############
 ###Plotting###
 ############## 
-def plot_graph(g, grid_size, obstacles, origin, goal, path):
-    pos = {node: node for node in g.nodes()}  # positions for all nodes
+def plot_bbox(pnt, goal=False):
+    color = "red" if goal else "green"
+    x, y = pnt[0], pnt[1]
+    bbox = [[(x-2, y-2), (x-2, y+2)], [(x-2, y+2), (x+2, y+2)], [(x+2, y+2), (x+2, y-2)], [(x+2, y-2), (x-2, y-2)]]
+    for segment in bbox:
+        start, end = segment[0], segment[1]
+        plt.plot((start[0], end[0]), (start[1], end[1]), color = color)
     
+def plot_graph(g, grid_size, obstacles, origin, goal, path):
+       
+    #Plot tree
     plt.title('Rapidly-exploring Random Tree (RRT)')
-    nx.draw(g, pos, with_labels=False, node_size=0, node_color='blue', edge_color='grey')
+    nx.draw(g, {node: node for node in g.nodes()}, with_labels=False, node_size=0, node_color='blue', edge_color='grey')
     plt.xlim(0, grid_size)
     plt.ylim(0, grid_size)
 
     #Plot obstacles 
     for obstacle in obstacles:
-        for segment in obstacle:
-            start, end = segment[0], segment[1]
+        start = obstacle[0]
+        obstacle = obstacle + [obstacle[0]]
+        for end in obstacle:
             plt.plot((start[0], end[0]), (start[1], end[1]), color = "black")
+            start = end
     
     #Plot environment boundary
-    x, y = [0, 0, 100, 100, 0], [0, 100, 100, 0, 0]
-    plt.plot (x, y, color="black")
+    plt.plot ([0, 0, 100, 100, 0], [0, 100, 100, 0, 0], color="black")
 
-    #Plot starting point 
-    x, y = origin[0], origin[1]
-    bbox = [[(x-2, y-2), (x-2, y+2)], [(x-2, y+2), (x+2, y+2)], [(x+2, y+2), (x+2, y-2)], [(x+2, y-2), (x-2, y-2)]]
-    for segment in bbox:
-        start, end = segment[0], segment[1]
-        plt.plot((start[0], end[0]), (start[1], end[1]), color = "green")
-
-    #Plot goal 
-    x, y = goal[0], goal[1]
-    bbox = [[(x-2, y-2), (x-2, y+2)], [(x-2, y+2), (x+2, y+2)], [(x+2, y+2), (x+2, y-2)], [(x+2, y-2), (x-2, y-2)]]
-    for segment in bbox:
-        start, end = segment[0], segment[1]
-        plt.plot((start[0], end[0]), (start[1], end[1]), color = "red")
+    #Plot starting and end point
+    plot_bbox(origin)
+    plot_bbox(goal, goal=True)
 
     #Plot path
     if path != []:
@@ -199,17 +189,13 @@ if __name__ == "__main__":
     netx_g.add_node(start_node)
 
     #Initialize obstacles
-    obstacles = [[[(20,20), (30,20)], [(30, 20), (30, 30)], [(30, 30), (20,30)], [(20,30), (20, 20)]], 
-                 [[(20,80), (35,80)], [(35, 80), (35, 95)], [(35, 95), (20,95)], [(20,95), (20, 80)]],
-                 [[(60,60), (80,60)], [(80, 60), (80, 80)], [(80, 80), (60,80)], [(60,80), (60, 60)]]]
+    obstacles = [[(85,25), (90, 30), (85, 35), (80,30), (85, 25)],
+                 [(20,20), (30, 20), (30, 30), (20,30), (20, 20)], 
+                 [(20,80), (35, 80), (35, 95), (20,95), (20, 80)],
+                 [(60,60), (80, 60), (80, 80), (60,80), (60, 60)]]
 
     new_graph, new_g, paths = rrt(graph, netx_g, iters, step_size, grid_size, obstacles, goal, eps)
     best_path = reconstruct_path(new_graph, paths) 
-    best_path = shortcutting(best_path + [goal], [[segment[0] for segment in obstacle] for obstacle in obstacles])
+    best_path = shortcutting(best_path + [goal], obstacles)
     
     plot_graph(new_g, grid_size, obstacles, start_node, goal, best_path)
-
-    #Problematic obstacle:
-    # obstacles = [[[(85,25), (90,30)], [(90, 30), (85, 35)], [(85, 35), (80,30)], [(80,30), (85, 25)]]]
-    # intersection = get_closest_collision(obstacles, (82.5, 27.5), (83, 28))
-    # print(intersection)
