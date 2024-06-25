@@ -2,7 +2,6 @@
 
 import numpy as np
 from sklearn.neighbors import KDTree 
-from shapely.geometry import Point, LineString, Polygon 
 import matplotlib.pyplot as plt 
 import networkx as nx 
 from dijkstras import astar, path_to_network, heuristic
@@ -81,16 +80,14 @@ def plot(v, e, path, obstacles):
         for segment in obstacle:
             x.append(segment[0])
             y.append(segment[1])
-        plt.plot(x, y, color="blue")
+        plt.plot(x, y, color="black")
 
     #Plot environment boundary
-    x, y = [0, 0, 100, 100, 0], [0, 100, 100, 0, 0]
-    plt.plot (x, y, color="blue")
+    plt.plot ([0, 0, 100, 100, 0], [0, 100, 100, 0, 0], color="black")
 
     #Plot path
     nx_path = path_to_network(path)
-    pos = {node : node for node in nx_path.nodes}
-    nx.draw(nx_path, pos, node_color="green", edge_color="green", node_size=25, width=3)
+    nx.draw(nx_path, {node : node for node in nx_path.nodes}, node_color="green", edge_color="green", node_size=25, width=3)
 
     plt.show()
 

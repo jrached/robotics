@@ -145,7 +145,7 @@ def plot_graph(g, grid_size, obstacles, origin, goal, path):
        
     #Plot tree
     plt.title('Rapidly-exploring Random Tree (RRT)')
-    nx.draw(g, {node: node for node in g.nodes()}, with_labels=False, node_size=0, node_color='blue', edge_color='grey')
+    nx.draw(g, {node: node for node in g.nodes()}, node_size=0, node_color='blue', edge_color='grey')
     plt.xlim(0, grid_size)
     plt.ylim(0, grid_size)
 
@@ -182,17 +182,16 @@ if __name__ == "__main__":
     eps = 3
 
     #Initialize graphs
-    start_node = (5, 5)
-    goal = (90, 90)
+    start_node, goal = (5, 5), (90, 90)
     graph = {start_node: None}
     netx_g = nx.Graph()
     netx_g.add_node(start_node)
 
     #Initialize obstacles
-    obstacles = [[(85,25), (90, 30), (85, 35), (80,30), (85, 25)],
-                 [(20,20), (30, 20), (30, 30), (20,30), (20, 20)], 
-                 [(20,80), (35, 80), (35, 95), (20,95), (20, 80)],
-                 [(60,60), (80, 60), (80, 80), (60,80), (60, 60)]]
+    obstacles = []
+    for center in [(40, 40), (20, 20), (20, 80), (70, 70), (60, 10)]:
+        obstacle = [(center[0]+dx, center[1]+dy) for dx, dy in [(0, 10), (10, 20), (20, 10), (10, 0)]]
+        obstacles.append(obstacle)
 
     new_graph, new_g, paths = rrt(graph, netx_g, iters, step_size, grid_size, obstacles, goal, eps)
     best_path = reconstruct_path(new_graph, paths) 
