@@ -6,25 +6,21 @@ from shapely.geometry import Point, LineString, Polygon
 import matplotlib.pyplot as plt 
 import networkx as nx 
 from dijkstras import astar, path_to_network, heuristic
+from utils import point_in_collision, segment_in_collision, shortcutting
 
-#TODO: Run A* on PRM and plot output.
+######################
+###Helper Functions###
+######################
+def build_adjacency_list(e):
+    adjacency = {}
+    for pnt, neighbor in e:
+        adjacency[pnt] = adjacency.get(pnt, []) + [(neighbor, heuristic(pnt, neighbor))]
+    
+    return adjacency
 
-#########################
-###Collision Functions###
-#########################
-def point_in_collision(pnt, obstacles):
-    point, collision = Point(pnt), False
-    for obstacle in obstacles: 
-        polygon = Polygon(obstacle)
-        collision = collision or polygon.contains(point)
-    return collision 
-
-def segment_in_collision(segment, obstacles):
-    line_segment, collision = LineString(segment), False
-    for obstacle in obstacles: 
-        polygon = Polygon(obstacle)
-        collision = collision or polygon.intersects(line_segment)
-    return collision 
+def get_nearest_start_and_goal(start, goal, v):
+    tree = KDTree(v, leaf_size=2)
+    return (nearest_neighbors(start, v, tree, 1)[0], nearest_neighbors(goal, v, tree, 1)[0])
 
 ####################
 ###Main Functions###
@@ -59,33 +55,6 @@ def build_prm(iters, grid_size, obstacles, k):
             
     return v, e
 
-def build_adjacency_list(e):
-    adjacency = {}
-    for pnt, neighbor in e:
-        adjacency[pnt] = adjacency.get(pnt, []) + [(neighbor, heuristic(pnt, neighbor))]
-    
-    return adjacency
-
-def get_nearest_start_and_goal(start, goal, v):
-    tree = KDTree(v, leaf_size=2)
-    return (nearest_neighbors(start, v, tree, 1)[0], nearest_neighbors(goal, v, tree, 1)[0])
-
-def shortcutting(path, obstacles, factor=5):
-    iters = factor * len(path)
-    for _ in range(iters): 
-        ndx1, ndx2 = np.sort(np.random.randint(0, len(path), 2))
-        pnt1, pnt2 = path[ndx1], path[ndx2]
-        if not segment_in_collision((pnt1, pnt2), obstacles):
-            path = path[:ndx1+1] + path[ndx2:] 
-    
-    new_path, seen = [], set()
-    for pnt in path:
-        if pnt not in seen:
-            new_path.append(pnt)
-            seen.add(pnt)
-
-    return new_path
-    
 ##############
 ###Plotting###
 ##############
@@ -128,9 +97,9 @@ def plot(v, e, path, obstacles):
 
 if __name__ == '__main__': 
     #PRM parameters
-    num_pnts = 1000
+    num_pnts = 500
     grid_size = 100
-    k = 30
+    k = 15
 
     #Define obstacles
     obstacles = []
@@ -141,7 +110,7 @@ if __name__ == '__main__':
     #Build PRM
     vertices, edges = build_prm(num_pnts, grid_size, obstacles, k)
     adjacency_list = build_adjacency_list(edges)
-    
+ 
     #Start and goal
     start, goal = (5, 5), (90, 90)
     nrst_start, nrst_goal = get_nearest_start_and_goal(start, goal, vertices)
@@ -149,7 +118,7 @@ if __name__ == '__main__':
     #Search best path in PRM
     distance, path, visited = astar(adjacency_list, nrst_start, nrst_goal)
     path = shortcutting([start] + path + [goal], obstacles)
-
+    
     plot(vertices, edges, path, obstacles)
 
 
