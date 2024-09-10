@@ -1,5 +1,19 @@
 #!/bin/usr/python3
 
+"""
+The optimization is being run.
+It seems to be optimizing right.
+The issue is that in minimizing jerk, it just 
+picks all the control points in the same point in space.
+
+I added the term -||qf - qi|| to the objective so that it would 
+reward long trajectories (so that we don't have all control points 
+at the same point) and it did produce a trajectory. It's just too long lol.
+
+Maybe something along those lines can be a permanent fix.
+Maybe the initial guess mitigates this problem (though I'm not convinced). 
+"""
+
 from bsplines import make_traj, plot_bspline_3d
 import numpy as np 
 from scipy.optimize import minimize
@@ -8,19 +22,19 @@ from scipy.optimize import minimize
 #imported.
 
 #global variables
-t_start, t_goal, step = 0, 1, 0.1
+t_start, t_goal, step = 0, 2, 0.1
 t_vals = np.arange(t_start, t_goal, step) 
 
-#define objective (minimize acceleration) 
+#define objective 
 def objective(control_points):
     n_points = len(control_points) // 3
     control_points = control_points.reshape(((n_points, 3)))
     
     pos, vel, acc, jerk = make_traj(control_points, t_vals)
 
-    acc_magnitude = np.linalg.norm(acc, axis=1)
+    jerk_magnitude = np.linalg.norm(jerk, axis=1)
 
-    return np.sum(acc_magnitude ** 2)
+    return np.sum(jerk_magnitude ** 2) - (pos[-1, :] - pos[0, :]).T @ (pos[-1, :] - pos[0, :])
 
 #Define vel and acc limits
 max_vel = 5.0
@@ -84,5 +98,6 @@ control_points = result.x.reshape(((n_points, 3)))
 pos, vel, acc, jerk = make_traj(control_points, t_vals)
 
 print(f"\n This is the position traj: {pos} \n")
+
 #Plot traj
 plot_bspline_3d(pos, vel, acc, jerk, control_points, plot_what=[True, True, True, True, True])
