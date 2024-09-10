@@ -161,12 +161,58 @@ def make_bspline_3d(t_vals, ctrl_pnts, k, knots):
     for t in t_vals:
         bases = compute_bases(k, t, num_ctrl_pnts, knots)
         
+        print(ctrl_pnts)
         P_xt = sum([basis * ctrl_pnt[0] for basis, ctrl_pnt in zip(bases, ctrl_pnts)])
         P_yt = sum([basis * ctrl_pnt[1] for basis, ctrl_pnt in zip(bases, ctrl_pnts)])
         P_zt = sum([basis * ctrl_pnt[2] for basis, ctrl_pnt in zip(bases, ctrl_pnts)])
         P_ts.append((P_xt, P_yt, P_zt))
         
     return P_ts
+
+####################################
+# Make Trajectory For Optimization
+####################################
+def make_bspline(t_vals, ctrl_pnts, k, knots):
+    """
+    Computes a bspline given the control points and the order of the bspline.
+
+    inputs: 
+        - t_vals: values for which to compute the spline.
+        - ctrl_pnts: list of (x, y) tuples.
+        - k: order of bspline. k = p + 1, where p is the degree of the polynomial.
+        - knots: the knot vector of the bspline. V = (t0, t1, ..., t_{n+k})
+   
+    output:
+        - P_ts: the x and y value of the bspline at each knot vector. This is a
+                list of (P_x(t_i), P_y(t_i)) tuples. 
+    """
+
+    num_ctrl_pnts = len(ctrl_pnts)
+
+    assert num_ctrl_pnts >= k, "Number of control points must be at least k"
+
+    # ctrl_pnts = fix_ctrl_pnts(ctrl_pnts)
+
+    P_ts = []
+    for t in t_vals:
+        bases = compute_bases(k, t, num_ctrl_pnts, knots)
+        
+        P_xt = sum([basis * ctrl_pnt[0] for basis, ctrl_pnt in zip(bases, ctrl_pnts)])
+        P_yt = sum([basis * ctrl_pnt[1] for basis, ctrl_pnt in zip(bases, ctrl_pnts)])
+        P_zt = sum([basis * ctrl_pnt[2] for basis, ctrl_pnt in zip(bases, ctrl_pnts)])
+        P_ts.append((P_xt, P_yt, P_zt))
+        
+    return P_ts
+
+def fix_ctrl_pnts(ctrl_pnts):
+
+    new_pnts = []
+    pnts = []
+    for i in range(0, len(ctrl_pnts), 3):
+        pnts = ctrl_pnts[i:i+3]
+        new_pnts.append(pnts)
+
+    return new_pnts
 
 def make_traj(ctrl_pnts, t_vals, k=4):
     n = len(ctrl_pnts) - 1
@@ -176,13 +222,68 @@ def make_traj(ctrl_pnts, t_vals, k=4):
     
     #Make spline and derivatives 
     dt = 1 / (t_goal - t_start)
-    bspline = make_bspline_3d(t_vals, ctrl_pnts_3d, k, knots)
+    bspline = make_bspline(t_vals, ctrl_pnts, k, knots)
     velocity = derivatives3d(bspline, dt)
     acceleration = derivatives3d(velocity, dt)
     jerk = derivatives3d(acceleration, dt)
 
-    return bspline, velocity, acceleration, jerk
+    return np.array(bspline), np.array(velocity), np.array(acceleration), np.array(jerk)
 
+def plot_bspline(P_ts, V_ts, A_ts, J_ts, ctrl_pnts, plot_what=[True, True, False, False, False]):
+    #create a figure and an axes object.
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    
+    #Fix control points for optimization 
+    ctrl_pnts = fix_ctrl_pnts(ctrl_pnts)
+
+    #define values to plot
+    x_curve = [coord[0] for coord in P_ts]
+    y_curve = [coord[1] for coord in P_ts]
+    z_curve = [coord[2] for coord in P_ts]
+
+    #define vel vals
+    vx_curve = [coord[0] for coord in V_ts]
+    vy_curve = [coord[1] for coord in V_ts]
+    vz_curve = [coord[2] for coord in V_ts]
+
+    #define acc vals
+    ax_curve = [coord[0] for coord in A_ts]
+    ay_curve = [coord[1] for coord in A_ts]
+    az_curve = [coord[2] for coord in A_ts]
+
+    #define jerk vals
+    jx_curve = [coord[0] for coord in J_ts]
+    jy_curve = [coord[1] for coord in J_ts]
+    jz_curve = [coord[2] for coord in J_ts]
+
+    #define ctrl points
+    x_ctrl = [coord[0] for coord in ctrl_pnts]
+    y_ctrl = [coord[1] for coord in ctrl_pnts]
+    z_ctrl = [coord[2] for coord in ctrl_pnts]
+    
+    #plot the surface
+    if plot_what[0]:
+        ax.plot(x_curve, y_curve, z_curve, color='r')
+    if plot_what[1]:
+        ax.plot(vx_curve, vy_curve, vz_curve, color='g')
+    if plot_what[2]:
+        ax.plot(ax_curve, ay_curve, az_curve, color='b')
+    if plot_what[3]:
+        ax.plot(jx_curve, jy_curve, jz_curve, color='m')
+    if plot_what[4]:
+        ax.plot(x_ctrl, y_ctrl, z_ctrl, color='c')
+        ax.scatter(x_ctrl, y_ctrl, z_ctrl, color='c')
+
+    #Fix axes
+    ax.set_xlim([-5, 10])
+    ax.set_ylim([-5, 10])
+    ax.set_zlim([-5, 10])
+    ax.set_xlabel("x-axis")
+    ax.set_ylabel("y-axis")
+    ax.set_zlabel("z-axis")
+
+    plt.show()
 ##################################
 # Plotting B-Splines
 ##################################
