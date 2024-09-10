@@ -47,7 +47,7 @@ def make_knots(t_start, t_goal, deg, num_seg):
     for _ in range(p + 1, m - p):
         knots2.append(t)
         t += delta_t
-    knots3 = [t_goal + i for i in range(p + 1)]
+    knots3 = [t_goal + i for i in range(p + 2)]
 
     return knots1 + knots2 + knots3
 
@@ -168,6 +168,21 @@ def make_bspline_3d(t_vals, ctrl_pnts, k, knots):
         
     return P_ts
 
+def make_traj(ctrl_pnts, t_vals, k=4):
+    n = len(ctrl_pnts) - 1
+    num_seg = n - k + 2
+    t_start, t_goal = t_vals[0], t_vals[-1]
+    knots = make_knots(t_start, t_goal, k - 1, num_seg)
+    
+    #Make spline and derivatives 
+    dt = 1 / (t_goal - t_start)
+    bspline = make_bspline_3d(t_vals, ctrl_pnts_3d, k, knots)
+    velocity = derivatives3d(bspline, dt)
+    acceleration = derivatives3d(velocity, dt)
+    jerk = derivatives3d(acceleration, dt)
+
+    return bspline, velocity, acceleration, jerk
+
 ##################################
 # Plotting B-Splines
 ##################################
@@ -240,16 +255,17 @@ def plot_bspline_3d(P_ts, V_ts, A_ts, J_ts, ctrl_pnts, plot_what=[True, True, Fa
 
 if __name__ == "__main__":
     k = 4
-    t_start, t_goal, dt = 0, 10, 0.1 
+    t_start, t_goal, step = 0, 10, 0.1 
 
     ###Plot in 3d
     ctrl_pnts_3d = [(-2, 4, 1),(0, 3, 1), (1, 3, 1), (1, 2, 2), (2, 2, 2), (3, 3, 3), (4, 3, 2), (6, 3, 2), (8, 4, 2), (7, 5, 1), (8, 6, 1), (8, 7, 1)]
     n = len(ctrl_pnts_3d) - 1
     num_seg = n - k + 2
     knots = make_knots(t_start, t_goal, k - 1, num_seg)
-    t_vals = np.arange(knots[3], knots[-4], dt) # Only generate samples inside the non-clamped intervals.
+    t_vals = np.arange(t_start, t_goal, step) 
 
     #Make spline and derivatives 
+    dt = 1 / (t_goal - t_start)
     bspline = make_bspline_3d(t_vals, ctrl_pnts_3d, k, knots)
     velocity = derivatives3d(bspline, dt)
     acceleration = derivatives3d(velocity, dt)
