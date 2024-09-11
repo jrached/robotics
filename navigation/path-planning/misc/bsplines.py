@@ -300,7 +300,7 @@ def plot_bspline_2d(P_ts, ctrl_pnts, plot_ctrl=False):
         plt.scatter(x_ctrl, y_ctrl)
     plt.show()
 
-def plot_bspline_3d(P_ts, V_ts, A_ts, J_ts, ctrl_pnts, plot_what=[True, True, False, False, False]):
+def plot_bspline_3d(P_ts, V_ts, A_ts, J_ts, ctrl_pnts, plot_what=[True, True, False, False, False], obs=None):
     #create a figure and an axes object.
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
@@ -343,6 +343,16 @@ def plot_bspline_3d(P_ts, V_ts, A_ts, J_ts, ctrl_pnts, plot_what=[True, True, Fa
         ax.plot(x_ctrl, y_ctrl, z_ctrl, color='c')
         ax.scatter(x_ctrl, y_ctrl, z_ctrl, color='c')
 
+    #Plot spherical obs
+    for c, r in obs:
+        # draw sphere
+        u, v = np.mgrid[0:2*np.pi:50j, 0:np.pi:50j]
+        x = r*np.cos(u)*np.sin(v)
+        y = r*np.sin(u)*np.sin(v)
+        z = r*np.cos(v)
+
+        ax.plot_surface(-x+c[0], -y+c[1], -z+c[2], color='y', alpha=0.2)
+
     #Fix axes
     ax.set_xlim([-5, 10])
     ax.set_ylim([-5, 10])
@@ -360,6 +370,19 @@ if __name__ == "__main__":
 
     ###Plot in 3d
     ctrl_pnts_3d = [(-2, 4, 1),(0, 3, 1), (1, 3, 1), (1, 2, 2), (2, 2, 2), (3, 3, 3), (4, 3, 2), (6, 3, 2), (8, 4, 2), (7, 5, 1), (8, 6, 1), (8, 7, 1)]
+    # ctrl_pnts_3d = np.array([[ -2.,           4.,           1.,        ],
+    #                          [  7.9362813,  -2.89951908 , -2.89959309],
+    #                          [  4.60442324,  -5.28600912,  -5.28601422],
+    #                          [  5.19027876,  -4.86177937,  -4.86177459],
+    #                          [  6.11607669,  -4.13492965,  -4.13490932],
+    #                          [  7.57403448,  -2.87344277,  -2.87341042],
+    #                          [  9.16105909,  -1.25719992,  -1.25717411],
+    #                          [ 10.37420702,   0.4599395 ,   0.45993005],
+    #                          [ 10.78014184,   2.05158721,   2.05154863],
+    #                          [  9.90658461,   3.83008417,   3.83002238],
+    #                          [  3.60240176,   6.0071289 ,   6.00709911],
+    #                          [-21.83306208,   4.65552247,   4.65633602]])
+    
     n = len(ctrl_pnts_3d) - 1
     num_seg = n - k + 2
     knots = make_knots(t_start, t_goal, k - 1, num_seg)
