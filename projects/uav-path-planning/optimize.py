@@ -3,12 +3,16 @@
 """
 Implemented spherical obstacles!!
 
+It works well with 2 or 3 obstacles. Obstacle constraints are non-linear as we use euclidean distance, so initial guess matters now
+and you don't have an initial guess module. Anything over 2 obstacle constraints and the solver starts getting stuck in local minima.
+
 Tried to implement a box obstacle at the origin. You can't do it with inequalities because
 the inequalities devide the space into halfspaces until no trajectory can be made unless inside
 the box (oposite of what we want). 
 
 #TODO: 1. Find a way to optimize for time (the duration of traj is currently user defined, t_goal - t_start) instead of distance.
        2. Implement convex hull obstacle avoidance instead of checking every point along the trajectory.    
+       3. Get rid of for loop in constraint_obs(). Use numpy, you're not a child anymore...  
 """
 
 from bsplines import make_traj, plot_bspline_3d
@@ -26,6 +30,11 @@ T_VALS = np.arange(t_start, t_goal, step)
 def reshape_ctrl_pnts(control_points):
     """
     scipy flattens the (n,3) control_points array to (3n,). This function shapes it back to (n,3).
+    
+    inputs: 
+        - control_points: The control points of a trajectory as a (3n,) shaped numpy array.
+    outputs: 
+        - The same control points but now properly stored as a (n, 3) shaped numpy array. 
     """
     n_points = len(control_points) // 3
     return control_points.reshape(((n_points, 3)))
@@ -35,7 +44,13 @@ def reshape_ctrl_pnts(control_points):
 ###############################################
 def objective(control_points):
     """
-    Computes objective function, J = j^2 + (p_goal - p_start)^2
+    Computes objective function, J = j^2
+
+    inputs: 
+        - control_points: The control points of a trajectory as (3n,) shaped numpy array.
+
+    outputs:
+        - The scalar output of the objective,
     """
     control_points = reshape_ctrl_pnts(control_points)
     
@@ -43,13 +58,26 @@ def objective(control_points):
 
     jerk_magnitude = np.linalg.norm(jerk, axis=1)
 
-    return np.sum(jerk_magnitude ** 2) + (pos[-1] - pos[0]).T @ (pos[-1] - pos[0])
+    return np.sum(jerk_magnitude ** 2)
 
 ##############################################
 # Constraint Functions
 ##############################################
 #Define velocity and acceleration constraints
 def velocity_constraint(control_points, max_vel):
+    """
+    Function used by scipy to enforce INEQUALITY constraint v(t) <= max_vel. Does this by taking the l1 norm along 
+    axis 1 of the vel array (|x| + |y| + |z| for every entry) flattening the (n, 3) vel
+    array to (n,). Then takes the maximum element of that array, max_elem, and returns max_vel - max_elem.
+    The return format for scipy inequalities is max_vel - v(t) >= 0.
+
+    inputs: 
+        - control_points: Control points of trajectory as flattened (3n,) numpy array.
+        - max_vel: The maximum velocity allowed - a scalar.
+
+    outputs: 
+        - The difference between the velocity limit and the largest velocity along the trajectory, max_vel - max(v(t))
+    """
     control_points = reshape_ctrl_pnts(control_points)
 
     _, velocities, _, _ = make_traj(control_points, T_VALS)
@@ -58,6 +86,9 @@ def velocity_constraint(control_points, max_vel):
     return max_vel - np.max(vel_magnitude) #Ensure largest vel is less than max_vel
 
 def acceleration_constraint(control_points, max_acc):
+    """
+    Same as velocity constraint but for acceleration.
+    """
     control_points = reshape_ctrl_pnts(control_points)
 
     _, _, accelerations, _ = make_traj(control_points, T_VALS)
@@ -67,25 +98,54 @@ def acceleration_constraint(control_points, max_acc):
 
 #Define initial and final condition constraints 
 def constraint_pos_start(control_points, pos_start):
+    """
+    Function used by scipy to enforce EQUALITY constraint p(t) = pos_start.
+
+    inputs: 
+        - control_points: Control points as flattened (3n,) numpy array.
+        - pos_start: Desired initial position, a (3,) numpy array.
+
+    outputs:
+        - The l1 norm of the difference between the desired and computed inital positions, a scalar.
+    """
     control_points = reshape_ctrl_pnts(control_points)
 
     pos, _, _, _ = make_traj(control_points, T_VALS)
     return np.linalg.norm(pos[0] - pos_start)
 
 def constraint_pos_goal(control_points, pos_goal):
+    """
+    Same as contraint_pos_start but for goal position.
+    """
     control_points = reshape_ctrl_pnts(control_points)
 
     pos, _, _, _ = make_traj(control_points, T_VALS)
     return np.linalg.norm(pos[-1] - pos_goal)
 
 #Define obstacle constraints
-def constraint_obs(control_points, obs):
-    control_points = reshape_ctrl_pnts(control_points)
+def constraint_obs(control_points, obs, off=0.5):
+    """
+    Function used by scipy to enforce INEQUALITY constraint dist_to_obs >= obs_radius. This constraints the position trajectory
+    to be outside of the obstacle spheres defined by obs. This function is run for every elem in obs.
 
-    obs_pos, obs_radius = obs[0], obs[1] + 1
+    inputs:
+        - control_points: Control points as flattened (3n,) numpy array.
+        - obs: a list of [pos, radius] lists, defining the center and radius of each obstacle sphere.
+
+    outputs: 
+        - The difference between the distance to the obstacle and the obstacle radius for every point on the trajectory, a (num_points,) numpy array.
+    """
+    control_points = reshape_ctrl_pnts(control_points)
     pos, _, _, _ = make_traj(control_points, T_VALS)
-    dist_to_obs = np.sqrt((pos[:, 0] - obs_pos[0])**2 + (pos[:, 1] - obs_pos[1])**2 + (pos[:, 2] - obs_pos[2])**2)
-    return dist_to_obs - obs_radius
+
+    ineqs = np.array([])
+    for ob in obs:
+        obs_pos, obs_radius = ob[0], ob[1]
+        dist_to_obs = np.sqrt((pos[:, 0] - obs_pos[0])**2 + (pos[:, 1] - obs_pos[1])**2 + (pos[:, 2] - obs_pos[2])**2)
+        diff = dist_to_obs - obs_radius - off
+        ineqs = np.hstack((ineqs, diff))
+        
+    return ineqs
 
 
 
@@ -99,10 +159,10 @@ if __name__ == '__main__':
 
     #Define initial and final conditions
     pos_start = np.array([-5, -5, -5]) 
-    pos_goal = np.array([5, 5, 5])
+    pos_goal = np.array([5 , 5, 5])
 
     #Define obstacle positions and radius
-    obs = [[(0, 0, 0), 3], [(-4, 0, 4), 3], [(-5, -5, -3), 1], [(-4, -4, -4), 1]]
+    obs = [[(-3.24965998,  2.9804959,   0.89797228), 3], [(0, 0, 0), 6]]
 
     #Define constraints
     constraints = [
@@ -110,7 +170,7 @@ if __name__ == '__main__':
     {'type': 'ineq', 'fun': acceleration_constraint, 'args': (max_acc,)},
     {'type': 'eq', 'fun': constraint_pos_start, 'args': (pos_start,)},
     {'type': 'eq', 'fun': constraint_pos_goal, 'args': (pos_goal,)},
-    {'type': 'ineq', 'fun': constraint_obs, 'args': (obs[0],)}
+    {'type': 'ineq', 'fun': constraint_obs, 'args': (obs,)}
     ]
 
     #Optimize control points to minimize jerk
