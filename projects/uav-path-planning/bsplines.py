@@ -2,9 +2,7 @@
 
 """
 Functions for creating B-Splines in 2D and 3D given the control points.
-TODO: 1. Make the bsplines function return the position and all of its derivatives.
-      2. Try to use that with a simple optimization function.
-      3. Consider using a bspline library or writing a function to get the actual basis derivatives. 
+TODO: 1. Consider using a bspline library or writing a function to get the actual basis derivatives. 
 
 The first value of vel, acc, and jerk scales with a factor of 1/dt, 1/dt^2, 1/dt^3 respectively because it's
 the zero to v, a, j change. It pretty much depends on how much time we tell the system the UAV took to get to the
@@ -161,7 +159,6 @@ def make_bspline_3d(t_vals, ctrl_pnts, k, knots):
     for t in t_vals:
         bases = compute_bases(k, t, num_ctrl_pnts, knots)
         
-        print(ctrl_pnts)
         P_xt = sum([basis * ctrl_pnt[0] for basis, ctrl_pnt in zip(bases, ctrl_pnts)])
         P_yt = sum([basis * ctrl_pnt[1] for basis, ctrl_pnt in zip(bases, ctrl_pnts)])
         P_zt = sum([basis * ctrl_pnt[2] for basis, ctrl_pnt in zip(bases, ctrl_pnts)])
@@ -170,51 +167,21 @@ def make_bspline_3d(t_vals, ctrl_pnts, k, knots):
     return P_ts
 
 ####################################
-# Make Trajectory For Optimization
+# Make Trajectory For Optimization 
 ####################################
-def make_bspline(t_vals, ctrl_pnts, k, knots):
-    """
-    Computes a bspline given the control points and the order of the bspline.
-
-    inputs: 
-        - t_vals: values for which to compute the spline.
-        - ctrl_pnts: list of (x, y) tuples.
-        - k: order of bspline. k = p + 1, where p is the degree of the polynomial.
-        - knots: the knot vector of the bspline. V = (t0, t1, ..., t_{n+k})
-   
-    output:
-        - P_ts: the x and y value of the bspline at each knot vector. This is a
-                list of (P_x(t_i), P_y(t_i)) tuples. 
-    """
-
-    num_ctrl_pnts = len(ctrl_pnts)
-
-    assert num_ctrl_pnts >= k, "Number of control points must be at least k"
-
-    # ctrl_pnts = fix_ctrl_pnts(ctrl_pnts)
-
-    P_ts = []
-    for t in t_vals:
-        bases = compute_bases(k, t, num_ctrl_pnts, knots)
-        
-        P_xt = sum([basis * ctrl_pnt[0] for basis, ctrl_pnt in zip(bases, ctrl_pnts)])
-        P_yt = sum([basis * ctrl_pnt[1] for basis, ctrl_pnt in zip(bases, ctrl_pnts)])
-        P_zt = sum([basis * ctrl_pnt[2] for basis, ctrl_pnt in zip(bases, ctrl_pnts)])
-        P_ts.append((P_xt, P_yt, P_zt))
-        
-    return P_ts
-
-def fix_ctrl_pnts(ctrl_pnts):
-
-    new_pnts = []
-    pnts = []
-    for i in range(0, len(ctrl_pnts), 3):
-        pnts = ctrl_pnts[i:i+3]
-        new_pnts.append(pnts)
-
-    return new_pnts
-
 def make_traj(ctrl_pnts, t_vals, k=4):
+    """
+    From control points, t intervals, and order of the b-spline compute the bspline and its derivatives.
+    
+    inputs: 
+        - ctrl_pnts: Control points of bspline.
+        - t_vals: Time intervals sample along the trajecotry. 
+        - k: Order of the bspline.
+    
+    outputs:
+        - bspline: The x, y, z position values of the bspline trajectory.
+        - other 3: The derivatives of bspline. 
+    """
     n = len(ctrl_pnts) - 1
     num_seg = n - k + 2
     t_start, t_goal = t_vals[0], t_vals[-1]
@@ -222,68 +189,13 @@ def make_traj(ctrl_pnts, t_vals, k=4):
     
     #Make spline and derivatives 
     dt = 1 / (t_goal - t_start)
-    bspline = make_bspline(t_vals, ctrl_pnts, k, knots)
+    bspline = make_bspline_3d(t_vals, ctrl_pnts, k, knots)
     velocity = derivatives3d(bspline, dt)
     acceleration = derivatives3d(velocity, dt)
     jerk = derivatives3d(acceleration, dt)
 
     return np.array(bspline), np.array(velocity), np.array(acceleration), np.array(jerk)
 
-def plot_bspline(P_ts, V_ts, A_ts, J_ts, ctrl_pnts, plot_what=[True, True, False, False, False]):
-    #create a figure and an axes object.
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
-    
-    #Fix control points for optimization 
-    ctrl_pnts = fix_ctrl_pnts(ctrl_pnts)
-
-    #define values to plot
-    x_curve = [coord[0] for coord in P_ts]
-    y_curve = [coord[1] for coord in P_ts]
-    z_curve = [coord[2] for coord in P_ts]
-
-    #define vel vals
-    vx_curve = [coord[0] for coord in V_ts]
-    vy_curve = [coord[1] for coord in V_ts]
-    vz_curve = [coord[2] for coord in V_ts]
-
-    #define acc vals
-    ax_curve = [coord[0] for coord in A_ts]
-    ay_curve = [coord[1] for coord in A_ts]
-    az_curve = [coord[2] for coord in A_ts]
-
-    #define jerk vals
-    jx_curve = [coord[0] for coord in J_ts]
-    jy_curve = [coord[1] for coord in J_ts]
-    jz_curve = [coord[2] for coord in J_ts]
-
-    #define ctrl points
-    x_ctrl = [coord[0] for coord in ctrl_pnts]
-    y_ctrl = [coord[1] for coord in ctrl_pnts]
-    z_ctrl = [coord[2] for coord in ctrl_pnts]
-    
-    #plot the surface
-    if plot_what[0]:
-        ax.plot(x_curve, y_curve, z_curve, color='r')
-    if plot_what[1]:
-        ax.plot(vx_curve, vy_curve, vz_curve, color='g')
-    if plot_what[2]:
-        ax.plot(ax_curve, ay_curve, az_curve, color='b')
-    if plot_what[3]:
-        ax.plot(jx_curve, jy_curve, jz_curve, color='m')
-    if plot_what[4]:
-        ax.plot(x_ctrl, y_ctrl, z_ctrl, color='c')
-        ax.scatter(x_ctrl, y_ctrl, z_ctrl, color='c')
-
-    #Fix axes
-    ax.set_xlim([-5, 10])
-    ax.set_ylim([-5, 10])
-    ax.set_zlim([-5, 10])
-    ax.set_xlabel("x-axis")
-    ax.set_ylabel("y-axis")
-    ax.set_zlabel("z-axis")
-
-    plt.show()
 ##################################
 # Plotting B-Splines
 ##################################
@@ -344,14 +256,15 @@ def plot_bspline_3d(P_ts, V_ts, A_ts, J_ts, ctrl_pnts, plot_what=[True, True, Fa
         ax.scatter(x_ctrl, y_ctrl, z_ctrl, color='c')
 
     #Plot spherical obs
-    for c, r in obs:
-        # draw sphere
-        u, v = np.mgrid[0:2*np.pi:50j, 0:np.pi:50j]
-        x = r*np.cos(u)*np.sin(v)
-        y = r*np.sin(u)*np.sin(v)
-        z = r*np.cos(v)
+    if obs:
+        for c, r in obs:
+            # draw sphere
+            u, v = np.mgrid[0:2*np.pi:50j, 0:np.pi:50j]
+            x = r*np.cos(u)*np.sin(v)
+            y = r*np.sin(u)*np.sin(v)
+            z = r*np.cos(v)
 
-        ax.plot_surface(-x+c[0], -y+c[1], -z+c[2], color='y', alpha=0.2)
+            ax.plot_surface(-x+c[0], -y+c[1], -z+c[2], color='y', alpha=0.2)
 
     #Fix axes
     ax.set_xlim([-5, 10])
@@ -365,36 +278,17 @@ def plot_bspline_3d(P_ts, V_ts, A_ts, J_ts, ctrl_pnts, plot_what=[True, True, Fa
 
 
 if __name__ == "__main__":
-    k = 4
+    #Make trajectory times 
     t_start, t_goal, step = 0, 10, 0.1 
-
-    ###Plot in 3d
-    ctrl_pnts_3d = [(-2, 4, 1),(0, 3, 1), (1, 3, 1), (1, 2, 2), (2, 2, 2), (3, 3, 3), (4, 3, 2), (6, 3, 2), (8, 4, 2), (7, 5, 1), (8, 6, 1), (8, 7, 1)]
-    # ctrl_pnts_3d = np.array([[ -2.,           4.,           1.,        ],
-    #                          [  7.9362813,  -2.89951908 , -2.89959309],
-    #                          [  4.60442324,  -5.28600912,  -5.28601422],
-    #                          [  5.19027876,  -4.86177937,  -4.86177459],
-    #                          [  6.11607669,  -4.13492965,  -4.13490932],
-    #                          [  7.57403448,  -2.87344277,  -2.87341042],
-    #                          [  9.16105909,  -1.25719992,  -1.25717411],
-    #                          [ 10.37420702,   0.4599395 ,   0.45993005],
-    #                          [ 10.78014184,   2.05158721,   2.05154863],
-    #                          [  9.90658461,   3.83008417,   3.83002238],
-    #                          [  3.60240176,   6.0071289 ,   6.00709911],
-    #                          [-21.83306208,   4.65552247,   4.65633602]])
-    
-    n = len(ctrl_pnts_3d) - 1
-    num_seg = n - k + 2
-    knots = make_knots(t_start, t_goal, k - 1, num_seg)
     t_vals = np.arange(t_start, t_goal, step) 
+    
+    #Define control points
+    ctrl_pnts_3d = [(-2, 4, 1),(0, 3, 1), (1, 3, 1), (1, 2, 2), (2, 2, 2), (3, 3, 3), (4, 3, 2), (6, 3, 2), (8, 4, 2), (7, 5, 1), (8, 6, 1), (8, 7, 1)]
 
     #Make spline and derivatives 
-    dt = 1 / (t_goal - t_start)
-    bspline = make_bspline_3d(t_vals, ctrl_pnts_3d, k, knots)
-    velocity = derivatives3d(bspline, dt)
-    acceleration = derivatives3d(velocity, dt)
-    jerk = derivatives3d(acceleration, dt)
+    traj = make_traj(ctrl_pnts_3d, t_vals, k=4)
 
+    #Plot in 3D
     to_plot = [True, True, True, False, False] #Plot pos and vel
-    plot_bspline_3d(bspline, velocity, acceleration, jerk, ctrl_pnts_3d, plot_what=to_plot)
+    plot_bspline_3d(*traj, ctrl_pnts_3d, plot_what=to_plot)
 
