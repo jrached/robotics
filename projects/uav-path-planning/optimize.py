@@ -10,9 +10,10 @@ Tried to implement a box obstacle at the origin. You can't do it with inequaliti
 the inequalities devide the space into halfspaces until no trajectory can be made unless inside
 the box (oposite of what we want). 
 
-#TODO: 1. Find a way to optimize for time (the duration of traj is currently user defined, t_goal - t_start) instead of distance.
-       2. Implement convex hull obstacle avoidance instead of checking every point along the trajectory.    
-       3. Get rid of for loop in constraint_obs(). Use numpy, you're not a child anymore...  
+TODO: 1. Implement initial guess module. 
+      2. Find a way to optimize for time (the duration of traj is currently user defined, t_goal - t_start) instead of distance.
+      3. Implement convex hull obstacle avoidance instead of checking every point along the trajectory.    
+      4. Get rid of for loop in constraint_obs(). Use numpy, you're not a child anymore...  
 """
 
 from bsplines import make_traj, plot_bspline_3d
@@ -53,8 +54,8 @@ def objective(control_points):
         - The scalar output of the objective,
     """
     control_points = reshape_ctrl_pnts(control_points)
-    
-    pos, _, _, jerk = make_traj(control_points, T_VALS)
+
+    _, _, _, jerk = make_traj(control_points, T_VALS)
 
     jerk_magnitude = np.linalg.norm(jerk, axis=1)
 
@@ -151,18 +152,19 @@ def constraint_obs(control_points, obs, off=0.5):
 
 if __name__ == '__main__':
     #Define initial gues
-    initial_guess = [(-2, 4, 1),(0, 3, 1), (1, 3, 1), (1, 2, 2), (2, 2, 2), (3, 3, 3), (4, 3, 2), (6, 3, 2), (8, 4, 2), (7, 5, 1), (8, 6, 1), (8, 7, 1)]
-
+    initial_guess = np.array([(-2, 4, 1), (0, 3, 1), (1, 3, 1), (1, 2, 2), (2, 2, 2), (3, 3, 3), (4, 3, 2), (6, 3, 2), (8, 4, 2), (7, 5, 1), (8, 6, 1), (8, 7, 1)])
+    initial_guess = initial_guess.reshape(((3 * initial_guess.shape[0],)))
+    
     #Define vel and acc limits
     max_vel = 5.0
     max_acc = 3.0
 
     #Define initial and final conditions
-    pos_start = np.array([-5, -5, -5]) 
+    pos_start = np.array([6, -4, -5]) 
     pos_goal = np.array([5 , 5, 5])
 
     #Define obstacle positions and radius
-    obs = [[(-3.24965998,  2.9804959,   0.89797228), 3], [(0, 0, 0), 6]]
+    obs = [[(2,  -2,   -4), 3], [(0, 0, 0), 4], [(6, -1.53743851, -1.45810787), 2]]
 
     #Define constraints
     constraints = [

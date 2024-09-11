@@ -40,13 +40,13 @@ def make_knots(t_start, t_goal, deg, num_seg):
     m = num_seg + 2 * p
     delta_t = (t_goal - t_start) / num_seg
 
-    knots1 = [t_start - (p - i + 1) for i in range(p + 1)]
+    knots1 = [t_start - (p - i + 1) for i in range(p+1)]
     knots2, t = [], t_start
-    for _ in range(p + 1, m - p):
-        knots2.append(t)
+    for _ in range(p+1, m - p):
         t += delta_t
-    knots3 = [t_goal + i for i in range(p + 2)]
-
+        knots2.append(t)
+    knots3 = [t_goal + i for i in range(p+1)]
+    
     return knots1 + knots2 + knots3
 
 #####################################
@@ -243,17 +243,23 @@ def plot_bspline_3d(P_ts, V_ts, A_ts, J_ts, ctrl_pnts, plot_what=[True, True, Fa
     z_ctrl = [coord[2] for coord in ctrl_pnts]
     
     #plot the surface
+    legend = []
     if plot_what[0]:
         ax.plot(x_curve, y_curve, z_curve, color='r')
+        legend.append("Pos")
     if plot_what[1]:
         ax.plot(vx_curve, vy_curve, vz_curve, color='g')
+        legend.append("Vel")
     if plot_what[2]:
         ax.plot(ax_curve, ay_curve, az_curve, color='b')
+        legend.append("Acc")
     if plot_what[3]:
         ax.plot(jx_curve, jy_curve, jz_curve, color='m')
+        legend.append("Jerk")
     if plot_what[4]:
         ax.plot(x_ctrl, y_ctrl, z_ctrl, color='c')
         ax.scatter(x_ctrl, y_ctrl, z_ctrl, color='c')
+        legend.append("Ctrl Pnts")
 
     #Plot spherical obs
     if obs:
@@ -266,13 +272,20 @@ def plot_bspline_3d(P_ts, V_ts, A_ts, J_ts, ctrl_pnts, plot_what=[True, True, Fa
 
             ax.plot_surface(-x+c[0], -y+c[1], -z+c[2], color='y', alpha=0.2)
 
-    #Fix axes
-    ax.set_xlim([-5, 10])
-    ax.set_ylim([-5, 10])
-    ax.set_zlim([-5, 10])
+    #Fix axes 
+    x_min, x_max = min(x_curve), max(x_curve)
+    y_min, y_max = min(y_curve), max(y_curve)
+    z_min, z_max = min(z_curve), max(z_curve)
+
+    range_max, range_min = max(x_max, y_max, z_max), min(x_min, y_min, z_min)
+
+    ax.set_xlim([range_min - 2, range_max + 2])
+    ax.set_ylim([range_min - 2, range_max + 2])
+    ax.set_zlim([range_min - 2, range_max + 2])
     ax.set_xlabel("x-axis")
     ax.set_ylabel("y-axis")
     ax.set_zlabel("z-axis")
+    ax.legend(legend)
 
     plt.show()
 
@@ -289,6 +302,6 @@ if __name__ == "__main__":
     traj = make_traj(ctrl_pnts_3d, t_vals, k=4)
 
     #Plot in 3D
-    to_plot = [True, True, True, False, False] #Plot pos and vel
+    to_plot = [True, True, True, False, True] #Plot pos and vel
     plot_bspline_3d(*traj, ctrl_pnts_3d, plot_what=to_plot)
 
