@@ -12,6 +12,7 @@ or to leave it as an implementation detail (temporary fix).
 
 import numpy as np
 import matplotlib.pyplot as plt
+from bsplines2 import make_bspline_new
 
 #####################################
 # Make Derivatives
@@ -40,12 +41,12 @@ def make_knots(t_start, t_goal, deg, num_seg):
     m = num_seg + 2 * p
     delta_t = (t_goal - t_start) / num_seg
 
-    knots1 = [t_start - (p - i + 1) for i in range(p+1)]
+    knots1 = [t_start for i in range(p+1)]
     knots2, t = [], t_start
     for _ in range(p+1, m - p):
         t += delta_t
         knots2.append(t)
-    knots3 = [t_goal + i for i in range(p+1)]
+    knots3 = [t_goal for i in range(p+1)]
     
     return knots1 + knots2 + knots3
 
@@ -189,7 +190,7 @@ def make_traj(ctrl_pnts, t_vals, k=4):
     
     #Make spline and derivatives 
     dt = 1 / (t_goal - t_start)
-    bspline = make_bspline_3d(t_vals, ctrl_pnts, k, knots)
+    bspline = make_bspline_new(t_vals, ctrl_pnts, k, knots)
     velocity = derivatives3d(bspline, dt)
     acceleration = derivatives3d(velocity, dt)
     jerk = derivatives3d(acceleration, dt)
