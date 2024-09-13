@@ -160,11 +160,11 @@ if __name__ == '__main__':
     max_acc = 3.0
 
     #Define initial and final conditions
-    pos_start = np.array([6, -4, -5]) 
+    pos_start = np.array([0, -5, -2]) 
     pos_goal = np.array([5 , 5, 5])
 
     #Define obstacle positions and radius
-    obs = [[(2,  -2,   -4), 3], [(0, 0, 0), 4], [(6, -1.53743851, -1.45810787), 2]]
+    obs = [[(2,  -2,   -4), 3], [(0, 0, 0), 3], [(6, -1.53743851, -1.45810787), 2], [(6, 0, 4), 2]]
 
     #Define constraints
     constraints = [
@@ -191,4 +191,4 @@ if __name__ == '__main__':
     print(f"\n Position traj: {pos} \n")
 
     #Plot traj
-    plot_bspline_3d(pos, vel, acc, jerk, opt_control_points, plot_what=[True, True, True, True, False], obs=obs)
+    plot_bspline_3d(pos, vel, acc, jerk, opt_control_points, plot_what=[True, True, True, True, True], obs=obs)
